@@ -1,0 +1,223 @@
+
+<style> 
+.date, .name, .text{
+	margin: 10px;
+}
+.date {
+	font-size: 90%;
+	color:gray;
+	font-style: italic;
+}
+.name {
+	font-weight: bold;
+}
+.text {
+}
+
+.message {
+	border-bottom: 1px solid silver;
+
+}
+
+#messages {
+	margin: 0.5in;
+}
+
+#name {
+	width: 10%;
+	text-align: center;
+}
+
+#text {
+	width: 80%;
+}
+
+#links {
+	font-size: 9pt;
+}
+
+a.link {
+	display: block;
+	color: gray;
+}
+
+</style> 
+
+<body>
+	<center>
+		<div id=links> </div>
+		<input type=text id=name placeholder='Name'></input>
+		<input type=text id=text placeholder='Put meeesage and hit enter to send it.'> </input>
+	</center>
+		<div id=messages> </div>
+
+</body>
+
+<script> 
+
+function f2(d) {
+	return d < 10 ? '0' + d : '' + d;
+}
+
+function createMessage(date, name, text) {
+	var e_mess = document.createElement('div');
+	var e_date = document.createElement('span');
+	var e_name = document.createElement('span');
+	var e_text = document.createElement('span');
+
+	e_mess.appendChild(e_date);
+	e_mess.appendChild(e_name);
+	e_mess.appendChild(e_text);
+
+	e_mess.className = 'message'
+	e_date.className = 'date'
+	e_name.className = 'name';
+	e_text.className = 'text';
+
+	var d = new Date(date);
+	
+
+	e_date.innerHTML = [ f2(d.getHours()), f2(d.getMinutes()), f2(d.getSeconds()) ].join(':')
+	e_name.innerHTML = name;
+	e_text.innerHTML = text;
+	
+	return e_mess;
+}
+
+function createText(text) {
+	var node = document.createTextNode(text);
+	return node;
+}
+
+function createLink(url) {
+	var link = document.createElement('a');
+	link.href = url;
+	link.innerHTML = url;
+	link.className = 'link';
+	return link;
+}
+
+function createImage(src) {
+	var link = document.createElement('img');
+	link.src = src;
+	link.style = 'display: block'
+	return link;
+}
+
+
+var last = 0;
+
+function appendMessage(message) {
+	var cont = document.getElementById('messages');
+	var m = createMessage(message.time, message.name, message.text);
+	//cont.appendChild(m);
+	cont.insertBefore(m, cont.firstChild);
+}
+
+function loadMessages(mes) {
+	console.log('load ' + mes.length + ' message.');
+	for ( var i=0; i<mes.length; i++ ) {
+		console.log(mes[i]);
+		appendMessage(mes[i]);	
+		if ( last < mes[i].time ) {
+			last = mes[i].time;
+		}
+	}
+}
+
+function onNewCommand(ev) {
+	var me = this; // bind me!
+
+	console.log("onNewCommand => ", ev.data);
+	var command;
+	try {	
+		command = JSON.parse(ev.data);
+	} catch (e) {
+		console.log("error in json parse ", e);
+		return
+	}
+
+	switch ( command.cmd ) {
+		case 'hello':
+			var messages = command.messages; // should be an array
+			loadMessages(messages);
+			break;
+		case 'message':
+			var message = command.message;
+			console.log("recieved =========", command);
+			appendMessage(message);
+			break;
+		default:
+			console.log('unknown cmd', command);
+	}
+}
+
+var gSocket;
+
+function initSocket() {
+	var port = ( location.port != 80 ? ":" + location.port : "");
+	var url = 'wss://' + location.hostname + port + '/'
+	var ws = new WebSocket(url);
+	ws.onopen = function() {
+		ws.send(JSON.stringify({cmd: 'ping'}));
+	}
+	ws.onerror = function(e) {
+		console.log(e);
+	}
+	ws.onmessage = onNewCommand.bind(ws);
+	gSocket = ws;
+	gSocket.sendJSON = function(json) {
+		gSocket.send(JSON.stringify(json));
+	}
+}
+
+
+function initLink() {
+	console.log('initLink');
+	var xhr = new XMLHttpRequest();
+	var url = '/host';
+	xhr.open('get', url);
+	xhr.send();
+	xhr.onreadystatechange = function() {
+		if ( xhr.readyState == 4 && xhr.status == 200 ) {
+			var cont = document.getElementById('links');
+			var hosts = JSON.parse(xhr.response);
+			for ( var i=0; i<hosts.length; i++ ) {
+				var h = hosts[i];
+				console.log(h);
+				var url = h.url;
+				console.log(url);
+				var img = createImage(h.qrcode);
+				cont.appendChild(img);
+				var m = createText(url); //createLink(url);
+				cont.appendChild(m);
+			}
+		}
+	}
+}
+
+function init(){
+	initSocket();
+	initLink();
+
+	// 書き込み設定
+	var name = document.getElementById('name');
+	var text = document.getElementById('text');
+
+	text.addEventListener('keypress', function(e) {
+		if ( e.keyCode == 13 ) {
+			if ( !name.value ) {
+				alert("Name required.");	
+				return;
+			}
+
+			console.log("sending text");
+			gSocket.sendJSON({ cmd: 'post', name: name.value, text: text.value });
+			text.value = '';
+		}
+	});
+}
+
+addEventListener('DOMContentLoaded', init);
+
+</script>
