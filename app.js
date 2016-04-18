@@ -1,47 +1,45 @@
 var express = require('express');
 var path = require('path'); // path-to-regexp
+var os = require('os');
+var qrcode = require('qrcode-js');
 //var logger = require('morgan');
 //var cookieParser = require('cookie-parser');
 //var bodyParser = require('body-parser');
-
 var routes = require('./routes/index');
 var users = require('./routes/users');
 
-var os = require('os');
-var qrcode = require('qrcode-js');
+var MACHINE_NAME = 'js-raspberry.labs.jp';
+var PORT_NUMBER = process.env.PORT || 3000;
 
 var app = express();
-
-var machineName = 'js-raspberry.labs.jp';
-
-// view engine setup
+app.set('port', PORT_NUMBER);
 app.set('views', path.join(__dirname, 'views'));
-app.set('view engine', 'pug'); // pug
-
+app.set('view engine', 'jade');
 //app.use(favicon());
 //app.use(logger('dev'));
 //app.use(bodyParser.json());
 //app.use(bodyParser.urlencoded());
 //app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
-
 app.use('/', routes);
 app.use('/users', users);
-
-app.set('port', process.env.PORT || 3000);
 
 
 function dump(v) {
 	console.log(require('util').inspect(v));
 }
 
+///  Messageのリスト（古い順）
 var gMessages = []
+///  クライアントリスト（古い順）
 var gSockets = [];
 
+///  
 function Message(time, name, text) {
 	return {time:time, name: name, text: text}
 }
 
+/// 全通知
 function notifiAll(json, exceptWS) {
 	gSockets.forEach(function(ws) {
 		if ( ws != exceptWS ) {
@@ -50,6 +48,7 @@ function notifiAll(json, exceptWS) {
 	});
 }
 
+/// コマンドハンドラ
 function onNewCommand(m) {
 	var me = this; // bind me!
 
@@ -80,6 +79,7 @@ function onNewCommand(m) {
 	}
 }
 
+/// 新規接続
 app.set('wsconnect', function onNewConnection(ws) {
 	//dump(ws);
 
@@ -98,10 +98,10 @@ app.set('wsconnect', function onNewConnection(ws) {
 		}
 	});
 
-	// 初回接続はすべて通知
+	// 初回接続はすべてのメッセージを送信
 	ws.send(JSON.stringify({cmd: 'hello', messages: gMessages}));
 
-	// ハンドラ
+	// コマンドハンドラ
 	ws.on('message', onNewCommand.bind(ws));
 });
 
@@ -123,11 +123,11 @@ app.get('/host', function(req, res, next) {
 
 				var hostname = details.address.replace(/\./g, '-');
 				var scheme = 'https';
-				var port = app.get('port') !== 80 ? ':' + app.get('port') : '';
-				var url = scheme + "://" + hostname + "." + machineName + port + '/';
+				var port = PORT_NUMBER !== 80 ? (':' + PORT_NUMBER) : '';
+				var url = scheme + "://" + hostname + "." + MACHINE_NAME + port + '/';
 				var q = qrcode.toDataURL(url, 4)
-				console.log(q);
-				//console.log(">>>>", url, details.family);
+				//console.log(q);
+				console.log(">>>>", url, details.family);
 				ret.push( {
 				   	family:details.family,
 				   	name: dev,
@@ -167,12 +167,12 @@ if (app.get('env') === 'development') {
 
 // production error handler
 // no stacktraces leaked to user
-app.use(function(err, req, res, next) {
-    res.status(err.status || 500);
-    res.render('error', {
-        message: err.message,
-        error: {}
-    });
-});
+///app.use(function(err, req, res, next) {
+///    res.status(err.status || 500);
+///    res.render('error', {
+///        message: err.message,
+///        error: {}
+///    });
+///});
 
 module.exports = app;

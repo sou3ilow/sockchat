@@ -6,20 +6,27 @@
 
 var app = require('../app');
 var debug = require('debug')('socketchat:server');
-var http = require('http');
+var https = require('https');
+var ws = require('ws');
 
 /**
  * Get port from environment and store in Express.
  */
 
-var port = normalizePort(process.env.PORT || '3000');
-app.set('port', port);
+var port = app.get('port');
+app.set('port', app.get(port));
 
 /**
  * Create HTTP server.
  */
+var fs = require('fs');
 
-var server = http.createServer(app);
+var option = {
+	key:fs.readFileSync('../serverKeys/server.key'),
+	cert:fs.readFileSync('../serverKeys/w-jhashi-democa.cert')
+}
+
+var server = https.createServer(option, app);
 
 /**
  * Listen on provided port, on all network interfaces.
@@ -29,25 +36,19 @@ server.listen(port);
 server.on('error', onError);
 server.on('listening', onListening);
 
-/**
- * Normalize a port into a number, string, or false.
- */
+var wsServer = new ws.Server({
+	server: server
+});
 
-function normalizePort(val) {
-  var port = parseInt(val, 10);
+//var wsServer = new WebSocketServer({
+//	host: '0.0.0.0',
+//	port: 3002
+//});
+//
+//// 新規接続
+//
 
-  if (isNaN(port)) {
-    // named pipe
-    return val;
-  }
-
-  if (port >= 0) {
-    // port number
-    return port;
-  }
-
-  return false;
-}
+wsServer.on('connection', app.get('wsconnect'));
 
 /**
  * Event listener for HTTP server "error" event.
