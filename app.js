@@ -8,7 +8,7 @@ var qrcode = require('qrcode-js');
 var routes = require('./routes/index');
 var users = require('./routes/users');
 
-var MACHINE_NAME = 'js-raspberry.labs.jp';
+var MACHINE_NAME = 'j-hashi.labs.jp';
 var PORT_NUMBER = process.env.PORT || 3000;
 
 var app = express();
