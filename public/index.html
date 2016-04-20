@@ -208,6 +208,10 @@ function init(){
 				alert("Name required.");	
 				return;
 			}
+			if ( !text.value ) {
+				console.log('empty');
+				return;
+			}
 
 			console.log("sending text");
 			gSocket.sendJSON({ cmd: 'post', name: name.value, text: text.value });
